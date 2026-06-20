@@ -46,6 +46,8 @@ _action_library = None
 _safety_supervisor = None
 _adapter = None
 _logger = None
+_mission_library = None
+_mission_supervisor = None
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +63,7 @@ def create_app(
 ):
     """Build and wire the FastAPI app with the given (or default) modules."""
     global _action_library, _safety_supervisor, _adapter, _logger
+    global _mission_library, _mission_supervisor
     global ExecuteRequest, CommandRequest
 
     # Lazy-import FastAPI + Pydantic (optional 'server' deps)
@@ -79,11 +82,20 @@ def create_app(
     from .safety_supervisor import SafetySupervisor
     from .sdk_adapter import UnitreeGo2Adapter
     from .logger import Logger
+    from .mission_library import MissionLibrary
+    from .mission_supervisor import MissionSupervisor
 
     _action_library = action_library or ActionLibrary()
     _safety_supervisor = safety_supervisor or SafetySupervisor()
     _adapter = adapter or UnitreeGo2Adapter(dry_mode=True)
     _logger = logger or Logger()
+    _mission_library = MissionLibrary()
+    _mission_supervisor = MissionSupervisor(
+        action_library=_action_library,
+        safety_supervisor=_safety_supervisor,
+        adapter=_adapter,
+        logger=_logger,
+    )
 
     app = FastAPI(
         title="Go2 Robot Bridge",
@@ -222,6 +234,83 @@ def create_app(
             "duration_s": elapsed,
             "steps": step_results,
         }
+
+    # -----------------------------------------------------------------------
+    # Phase 4 routes — mission library
+    # -----------------------------------------------------------------------
+
+    @app.get("/missions")
+    async def list_missions():
+        missions = _mission_library.list_missions()
+        _logger.log_event("missions_listed", {"count": len(missions)})
+        return {"missions": missions}
+
+    @app.post("/missions/{name}/dry-run")
+    async def mission_dry_run(name: str):
+        try:
+            mission = _mission_library.get_mission(name)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"Unknown mission: {name}")
+
+        # Return mission metadata + steps (no execution)
+        steps = []
+        for step in mission.get("steps", []):
+            step_type = step.get("type")
+            if step_type == "action":
+                steps.append(
+                    {
+                        "type": "action",
+                        "name": step.get("name"),
+                    }
+                )
+            elif step_type == "observe":
+                steps.append(
+                    {
+                        "type": "observe",
+                        "duration": step.get("duration"),
+                        "waypoint": step.get("waypoint"),
+                    }
+                )
+            elif step_type == "report":
+                steps.append({"type": "report"})
+            else:
+                steps.append({"type": step_type})
+
+        return {
+            "name": name,
+            "description": mission.get("description", ""),
+            "risk": mission.get("risk", "unknown"),
+            "requires_confirmation": mission.get("requires_confirmation", True),
+            "max_duration_s": mission.get("max_duration", 30.0),
+            "steps": steps,
+        }
+
+    @app.post("/missions/{name}/execute")
+    async def mission_execute(name: str, req: ExecuteRequest):
+        # 1. Lookup mission
+        try:
+            mission = _mission_library.get_mission(name)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"Unknown mission: {name}")
+
+        # 2. Execute via mission supervisor
+        try:
+            result = _mission_supervisor.execute_mission(
+                mission_name=name,
+                mission=mission,
+                confirmed=req.confirmed,
+            )
+        except PermissionError as e:
+            raise HTTPException(status_code=403, detail=str(e))
+        except TimeoutError as e:
+            raise HTTPException(status_code=408, detail=str(e))
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Mission '{name}' failed: {e}",
+            )
+
+        return result
 
     # -----------------------------------------------------------------------
     # Logs

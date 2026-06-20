@@ -1,0 +1,87 @@
+missions:
+  go2_demo_patrol:
+    description: "Small patrol demo: check status, stand, move forward, turn, observe, report."
+    risk: low_motion
+    requires_confirmation: true
+    max_duration: 30.0
+    world_state:
+      waypoints:
+        - label: "wp_start"
+          description: "Starting position"
+        - label: "wp_mid"
+          description: "Mid-patrol observation point"
+        - label: "wp_end"
+          description: "Ending position"
+    steps:
+      - type: action
+        name: go2_status_check
+      - type: action
+        name: go2_balance_stand
+      - type: observe
+        duration: 1.0
+      - type: action
+        name: go2_forward_short
+      - type: observe
+        duration: 1.0
+      - type: action
+        name: go2_turn_right_short
+      - type: observe
+        duration: 1.0
+      - type: action
+        name: go2_forward_short
+      - type: observe
+        duration: 1.0
+      - type: action
+        name: go2_turn_left_short
+      - type: report
+
+  go2_inspection_walk:
+    description: "Inspection walk: move to waypoints, observe at each, report back."
+    risk: low_motion
+    requires_confirmation: true
+    max_duration: 60.0
+    world_state:
+      waypoints:
+        - label: "wp_a"
+          description: "Starting corner"
+          estimated_distance_m: 0.0
+        - label: "wp_b"
+          description: "Middle zone"
+          estimated_distance_m: 0.5
+        - label: "wp_c"
+          description: "Far corner"
+          estimated_distance_m: 1.0
+    steps:
+      - type: action
+        name: go2_status_check
+      - type: action
+        name: go2_balance_stand
+      - type: action
+        name: go2_forward_short
+      - type: observe
+        duration: 2.0
+        waypoint: "wp_b"
+      - type: action
+        name: go2_forward_short
+      - type: observe
+        duration: 2.0
+        waypoint: "wp_c"
+      - type: action
+        name: go2_turn_right_short
+      - type: action
+        name: go2_forward_short
+      - type: observe
+        duration: 1.0
+      - type: report
+
+  go2_status_report:
+    description: "Read-only comprehensive status check and observation report."
+    risk: read_only
+    requires_confirmation: false
+    max_duration: 10.0
+    steps:
+      - type: action
+        name: go2_status_check
+      - type: observe
+        duration: 0.5
+      - type: report
