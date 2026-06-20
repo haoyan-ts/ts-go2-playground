@@ -6,7 +6,7 @@ from pathlib import Path
 import cv2
 import mediapipe as mp
 
-from gesture_detector import (
+from .gesture_detector import (
     detect_gesture,
     GESTURE_NONE,
     GESTURE_OPEN_HAND,
@@ -19,7 +19,9 @@ from gesture_detector import (
 CONFIRM_FRAMES = 15  # 同じジェスチャーが何フレーム続いたら実行するか
 COOLDOWN_SEC = 2.0  # コマンド実行後のクールダウン（秒）
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-DEFAULT_MODEL_PATH = Path(__file__).with_name("models") / "hand_landmarker.task"
+DEFAULT_MODEL_PATH = (
+    Path(__file__).resolve().parent.parent / "models" / "hand_landmarker.task"
+)
 
 GESTURE_ACTIONS = {
     GESTURE_OPEN_HAND: ("StandUp", lambda c: c.stand_up()),
@@ -105,7 +107,7 @@ def draw_overlay(frame, gesture: str, last_action: str, cooldown_remaining: floa
 def run(network_interface: str, camera_index: int, dry_run: bool, model_path: Path):
     controller = None
     if not dry_run:
-        from go2_controller import Go2Controller
+        from .go2_controller import Go2Controller
 
         controller = Go2Controller(network_interface)
 

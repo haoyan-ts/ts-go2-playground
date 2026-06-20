@@ -27,6 +27,8 @@ pixi install
 最新の MediaPipe は Tasks API を使用するため、初回実行時に hand landmarker の
 モデルファイルが `models/hand_landmarker.task` へ自動ダウンロードされます。
 
+プロジェクトのソースコードは `src/` ディレクトリに配置されています。
+
 ### 3. unitree_sdk2_python のインストール
 
 Go2へ実際にコマンド送信する場合のみ必要です。
@@ -64,7 +66,7 @@ pixi run run
 別のインターフェース名を使う場合は以下のように直接指定してください。
 
 ```bash
-pixi run python gesture_demo.py --interface <your_interface>
+pixi run python -m src --interface <your_interface>
 ```
 
 ### カメラと認識だけテスト（Go2不要）
@@ -77,7 +79,7 @@ pixi run dry-run
 以下のように `--model` で `.task` ファイルを指定できます。
 
 ```bash
-pixi run python gesture_demo.py --dry-run --model path/to/hand_landmarker.task
+pixi run python -m src --dry-run --model path/to/hand_landmarker.task
 ```
 
 ## ジェスチャー一覧

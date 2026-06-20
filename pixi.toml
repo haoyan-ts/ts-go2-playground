@@ -14,6 +14,6 @@ opencv-python = ">=4.10,<5"
 mediapipe = ">=0.10.14,<0.11"
 
 [tasks]
-run = "python gesture_demo.py --interface eth0"
-dry-run = "python gesture_demo.py --dry-run"
+run = {cmd = "python -m src --interface eth0", env = {PYTHONPATH = "."}}
+dry-run = {cmd = "python -m src --dry-run", env = {PYTHONPATH = "."}}
 install-unitree-sdk = "python -m pip install git+https://github.com/unitreerobotics/unitree_sdk2_python.git"
