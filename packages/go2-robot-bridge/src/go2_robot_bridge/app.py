@@ -1,0 +1,293 @@
+"""FastAPI application for Robot Bridge — wires action library, safety supervisor,
+SDK adapter, and logger into a REST API for sandbox-side clients.
+
+FastAPI and Pydantic are imported lazily so that the core bridge modules
+(action_library, safety_supervisor, sdk_adapter, logger) remain importable
+without installing the optional 'server' dependency group.
+"""
+
+import time
+from pathlib import Path
+from typing import Any, Dict
+
+
+def _get_fastapi():
+    """Lazy import of FastAPI + Pydantic (optional 'server' deps)."""
+    global FastAPI, HTTPException, BaseModel  # type: ignore[name-defined]
+    from fastapi import FastAPI as _FastAPI, HTTPException as _HTTPException
+    from pydantic import BaseModel as _BaseModel
+
+    FastAPI, HTTPException, BaseModel = _FastAPI, _HTTPException, _BaseModel
+
+
+# ---------------------------------------------------------------------------
+# Request / response models (defined after lazy import)
+# ---------------------------------------------------------------------------
+
+
+class ExecuteRequest:
+    """Will be replaced by Pydantic model at app creation time."""
+
+    confirmed: bool = False
+
+
+class CommandRequest:
+    """Will be replaced by Pydantic model at app creation time."""
+
+    command: str = ""
+    params: Dict[str, Any] = {}
+
+
+# ---------------------------------------------------------------------------
+# Singletons (lazy init via create_app)
+# ---------------------------------------------------------------------------
+
+_action_library = None
+_safety_supervisor = None
+_adapter = None
+_logger = None
+
+
+# ---------------------------------------------------------------------------
+# App factory
+# ---------------------------------------------------------------------------
+
+
+def create_app(
+    action_library: Any = None,
+    safety_supervisor: Any = None,
+    adapter: Any = None,
+    logger: Any = None,
+):
+    """Build and wire the FastAPI app with the given (or default) modules."""
+    global _action_library, _safety_supervisor, _adapter, _logger
+    global ExecuteRequest, CommandRequest
+
+    # Lazy-import FastAPI + Pydantic (optional 'server' deps)
+    _get_fastapi()
+
+    # Redefine request models as proper Pydantic models
+    class ExecuteRequest(BaseModel):  # type: ignore[name-defined]
+        confirmed: bool = False
+
+    class CommandRequest(BaseModel):  # type: ignore[name-defined]
+        command: str
+        params: Dict[str, Any] = {}
+
+    # Resolve defaults
+    from .action_library import ActionLibrary
+    from .safety_supervisor import SafetySupervisor
+    from .sdk_adapter import UnitreeGo2Adapter
+    from .logger import Logger
+
+    _action_library = action_library or ActionLibrary()
+    _safety_supervisor = safety_supervisor or SafetySupervisor()
+    _adapter = adapter or UnitreeGo2Adapter(dry_mode=True)
+    _logger = logger or Logger()
+
+    app = FastAPI(
+        title="Go2 Robot Bridge",
+        version="0.1.0",
+        docs_url="/docs",
+        redoc_url=None,
+    )
+
+    # -----------------------------------------------------------------------
+    # Health
+    # -----------------------------------------------------------------------
+
+    @app.get("/health")
+    async def health():
+        return {"status": "ok", "dry_mode": _adapter.dry_mode}
+
+    # -----------------------------------------------------------------------
+    # Phase 1 routes — robot direct
+    # -----------------------------------------------------------------------
+
+    @app.get("/robot/status")
+    async def robot_status():
+        result = _adapter.status()
+        _logger.log_event("status_queried", result)
+        return result
+
+    @app.post("/robot/stop")
+    async def robot_stop():
+        result = _adapter.stop()
+        _logger.log_stop()
+        return result
+
+    @app.post("/robot/command")
+    async def robot_command(req: CommandRequest):
+        """Phase-1 style single-command dispatch.
+
+        Supported commands: status, stop, balance_stand, stand_up,
+        stand_down, hello, dance1, recovery_stand.
+        """
+        valid = {
+            "status",
+            "stop",
+            "balance_stand",
+            "stand_up",
+            "stand_down",
+            "hello",
+            "dance1",
+            "recovery_stand",
+        }
+        cmd = req.command
+        if cmd not in valid:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown command '{cmd}'. Allowed: {sorted(valid)}",
+            )
+
+        method = getattr(_adapter, cmd)
+        result = method(**req.params)
+        _logger.log_event("command_executed", {"command": cmd, "result": result})
+        return result
+
+    # -----------------------------------------------------------------------
+    # Phase 2 routes — action library
+    # -----------------------------------------------------------------------
+
+    @app.get("/actions")
+    async def list_actions():
+        actions = _action_library.list_actions()
+        _logger.log_event("actions_listed", {"count": len(actions)})
+        return {"actions": actions}
+
+    @app.post("/actions/{name}/dry-run")
+    async def action_dry_run(name: str):
+        try:
+            action = _action_library.get_action(name)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"Unknown action: {name}")
+
+        # Clamp any move-step velocities/durations for display
+        steps = []
+        for step in action.get("steps", []):
+            if step.get("type") == "move":
+                steps.append(_safety_supervisor.clamp_move_step(step))
+            else:
+                steps.append(step)
+
+        return {
+            "name": name,
+            "description": action.get("description", ""),
+            "risk": action.get("risk", "unknown"),
+            "requires_confirmation": action.get("requires_confirmation", True),
+            "steps": steps,
+        }
+
+    @app.post("/actions/{name}/execute")
+    async def action_execute(name: str, req: ExecuteRequest):
+        # 1. Lookup action
+        try:
+            action = _action_library.get_action(name)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"Unknown action: {name}")
+
+        # 2. Safety validate (confirmation, speed, duration, step count)
+        try:
+            _safety_supervisor.validate_action(name, action, req.confirmed)
+        except PermissionError as e:
+            raise HTTPException(status_code=403, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+
+        # 3. Execute steps
+        _logger.log_action_start(name)
+        t0 = time.time()
+        step_results = []
+
+        try:
+            for step in action.get("steps", []):
+                step_type = step.get("type")
+                result = _execute_step(step_type, step)
+                step_results.append({"type": step_type, "result": result})
+                _logger.log_step(step_type, result)
+        except Exception as e:
+            _logger.log_action_error(name, str(e))
+            _adapter.stop()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Action '{name}' failed at step '{step_type}': {e}",
+            )
+
+        elapsed = round(time.time() - t0, 3)
+        _logger.log_action_complete(name, elapsed)
+
+        return {
+            "name": name,
+            "status": "completed",
+            "duration_s": elapsed,
+            "steps": step_results,
+        }
+
+    # -----------------------------------------------------------------------
+    # Logs
+    # -----------------------------------------------------------------------
+
+    @app.get("/logs/recent")
+    async def logs_recent(lines: int = 50):
+        """Return the last N lines from the bridge log file."""
+        log_file = _logger.log_path
+        if not log_file.exists():
+            return {"lines": []}
+
+        with log_file.open("r", encoding="utf-8") as f:
+            all_lines = f.readlines()
+        recent = all_lines[-lines:]
+        return {"lines": [line.rstrip("\n") for line in recent]}
+
+    return app
+
+
+# ---------------------------------------------------------------------------
+# Step execution helper
+# ---------------------------------------------------------------------------
+
+
+def _execute_step(step_type: str, step: Dict[str, Any]) -> Dict[str, Any]:
+    """Dispatch a single action step to the SDK adapter."""
+    if step_type == "status":
+        return _adapter.status()
+    elif step_type == "stop":
+        return _adapter.stop()
+    elif step_type == "balance_stand":
+        return _adapter.balance_stand()
+    elif step_type == "stand_up":
+        return _adapter.stand_up()
+    elif step_type == "stand_down":
+        return _adapter.stand_down()
+    elif step_type == "hello":
+        return _adapter.hello()
+    elif step_type == "dance1":
+        return _adapter.dance1()
+    elif step_type == "recovery_stand":
+        return _adapter.recovery_stand()
+    elif step_type == "move":
+        clamped = _safety_supervisor.clamp_move_step(step)
+        return _adapter.move(
+            vx=clamped["vx"],
+            vy=clamped["vy"],
+            vyaw=clamped["vyaw"],
+            duration=clamped["duration"],
+        )
+    elif step_type == "wait":
+        duration = float(step.get("duration", 0.0))
+        time.sleep(duration)
+        return {"waited_s": duration}
+    else:
+        raise ValueError(f"Unknown step type: {step_type}")
+
+
+# ---------------------------------------------------------------------------
+# Default app instance (for uvicorn go2_robot_bridge.app:app)
+# Lazy-created so the module can be imported without FastAPI installed.
+# ---------------------------------------------------------------------------
+
+
+def __getattr__(name: str):
+    if name == "app":
+        return create_app()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

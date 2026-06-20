@@ -12,8 +12,14 @@ pip = "*"
 [pypi-dependencies]
 go2-gesture-control = { path = "./packages/go2-gesture-control", editable = true }
 go2-robot-bridge = { path = "./packages/go2-robot-bridge", editable = true }
+go2-bridge-client = { path = "./packages/go2-bridge-client", editable = true }
+fastapi = ">=0.138.0, <0.139"
+uvicorn = ">=0.49.0, <0.50"
+pydantic = ">=2.13.4, <3"
 
 [tasks]
 run = {cmd = "python -m go2_gesture_control --interface eth0"}
 dry-run = {cmd = "python -m go2_gesture_control --dry-run"}
+bridge-server = {cmd = "uvicorn go2_robot_bridge.app:app --host 127.0.0.1 --port 50001"}
+bridge-client = {cmd = "python -m go2_bridge_client"}
 install-unitree-sdk = "python -m pip install git+https://github.com/unitreerobotics/unitree_sdk2_python.git"

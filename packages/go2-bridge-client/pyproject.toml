@@ -1,0 +1,15 @@
+[project]
+name = "go2-bridge-client"
+version = "0.1.0"
+description = "Sandbox-side CLI client for Go2 Robot Bridge — no SDK dependency"
+requires-python = ">=3.10,<3.12"
+dependencies = [
+    "requests",
+]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

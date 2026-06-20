@@ -1,0 +1,46 @@
+# NemoClaw network policy for Unitree Robot Bridge
+#
+# This policy restricts sandbox-side clients to only communicate with the
+# Robot Bridge on the host, blocking direct SDK access and other outbound
+# connections.
+
+name: unitree-robot-bridge
+version: "1.0"
+description: Allow sandbox → Robot Bridge (host:50001) only; block all other outbound
+
+# ---------------------------------------------------------------------------
+# Outbound rules (from sandbox perspective)
+# ---------------------------------------------------------------------------
+
+outbound:
+  # Allow HTTP traffic to the Robot Bridge on the host PC
+  - action: allow
+    protocol: tcp
+    destination:
+      host: 127.0.0.1
+      port: 50001
+    methods:
+      - GET
+      - POST
+    description: "Sandbox → Robot Bridge HTTP API"
+
+  # Allow DNS resolution (needed for resolving hostnames)
+  - action: allow
+    protocol: udp
+    destination:
+      port: 53
+    description: "DNS resolution"
+
+  # Block everything else outbound — no direct SDK, no internet
+  - action: deny
+    protocol: all
+    description: "Deny all other outbound traffic"
+
+# ---------------------------------------------------------------------------
+# Inbound rules (from sandbox perspective — typically empty)
+# ---------------------------------------------------------------------------
+
+inbound:
+  - action: deny
+    protocol: all
+    description: "Deny all inbound traffic"
