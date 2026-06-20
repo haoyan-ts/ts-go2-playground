@@ -1,7 +1,7 @@
 [workspace]
-name = "go2-gesture-demo"
+name = "ts-go2-playground"
 version = "0.1.0"
-description = "Gesture control demo for Unitree Go2"
+description = "Go2 Playground — umbrella monorepo for Go2 gesture control and Robot Bridge foundation"
 channels = ["conda-forge"]
 platforms = ["linux-64", "win-64", "osx-64", "osx-arm64"]
 
@@ -10,10 +10,9 @@ python = ">=3.10,<3.12"
 pip = "*"
 
 [pypi-dependencies]
-opencv-python = ">=4.10,<5"
-mediapipe = ">=0.10.14,<0.11"
+go2-gesture-control = { path = "./packages/go2-gesture-control", editable = true }
 
 [tasks]
-run = {cmd = "python -m src --interface eth0", env = {PYTHONPATH = "."}}
-dry-run = {cmd = "python -m src --dry-run", env = {PYTHONPATH = "."}}
+run = {cmd = "python -m go2_gesture_control --interface eth0"}
+dry-run = {cmd = "python -m go2_gesture_control --dry-run"}
 install-unitree-sdk = "python -m pip install git+https://github.com/unitreerobotics/unitree_sdk2_python.git"

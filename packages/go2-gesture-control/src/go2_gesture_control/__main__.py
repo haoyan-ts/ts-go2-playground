@@ -20,7 +20,7 @@ CONFIRM_FRAMES = 15  # 同じジェスチャーが何フレーム続いたら実
 COOLDOWN_SEC = 2.0  # コマンド実行後のクールダウン（秒）
 MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 DEFAULT_MODEL_PATH = (
-    Path(__file__).resolve().parent.parent / "models" / "hand_landmarker.task"
+    Path(__file__).resolve().parent.parent.parent / "models" / "hand_landmarker.task"
 )
 
 GESTURE_ACTIONS = {
