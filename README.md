@@ -1,100 +1,84 @@
-# Go2 Gesture Control Demo
+# Go2 Playground
 
-WebカメラとMediaPipeを使ってUnitree Go2をジェスチャー操作するデモです。
+Umbrella monorepo for **Unitree Go2** development — gesture control demo, Robot Bridge
+foundation (safe REST API for Go2), and sandbox-side client.
 
-## 動作環境
+## Packages
 
-- Ubuntu 22.04
-- Pixi
-- Go2とPC間：有線LAN直接接続
+| Package                                                            | Description                                                                                   |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| [`packages/go2-gesture-control/`](./packages/go2-gesture-control/) | Webcam + MediaPipe gesture control demo for Go2                                               |
+| [`packages/go2-robot-bridge/`](./packages/go2-robot-bridge/)       | Host-side FastAPI server — action library, safety supervisor, mission supervisor, SDK adapter |
+| [`packages/go2-bridge-client/`](./packages/go2-bridge-client/)     | Sandbox-side CLI to talk to the Robot Bridge (no SDK dependency)                              |
 
-## セットアップ
+## Quick Start
 
-### 1. Pixiのインストール
+### Prerequisites
 
-Pixiを未導入の場合は公式手順でインストールしてください。
+- [pixi](https://pixi.sh/latest/) package manager
+- Python 3.10 or 3.11
+- Ubuntu 22.04+ (for real Go2 control; dry mode works on any OS)
 
-- https://pixi.sh/latest/
-
-### 2. 依存ライブラリのインストール
-
-プロジェクトルートで以下を実行します。
+### Install
 
 ```bash
 pixi install
 ```
 
-最新の MediaPipe は Tasks API を使用するため、初回実行時に hand landmarker の
-モデルファイルが `models/hand_landmarker.task` へ自動ダウンロードされます。
+### Run the bridge server (dry mode — no robot needed)
 
-プロジェクトのソースコードは `src/` ディレクトリに配置されています。
+```bash
+pixi run bridge-server
+```
 
-### 3. unitree_sdk2_python のインストール
+Open a second terminal:
 
-Go2へ実際にコマンド送信する場合のみ必要です。
+```bash
+pixi run python -m go2_bridge_client health
+```
+
+### Install Unitree SDK (for real Go2)
 
 ```bash
 pixi run install-unitree-sdk
 ```
 
-### 4. ネットワーク設定
+### Network setup (for real Go2)
 
-PCのイーサネットアダプタを以下の固定IPに設定します。
-
-| 項目             | 値              |
-| ---------------- | --------------- |
-| IPアドレス       | 192.168.123.100 |
-| サブネットマスク | 255.255.255.0   |
-| ゲートウェイ     | （不要）        |
-
-Go2のIPは `192.168.123.161` です。接続確認：
+| Item        | Value             |
+| ----------- | ----------------- |
+| PC wired IP | `192.168.123.100` |
+| Subnet mask | `255.255.255.0`   |
+| Go2 IP      | `192.168.123.161` |
 
 ```bash
+sudo ip addr add 192.168.123.100/24 dev eth0
+sudo ip link set eth0 up
 ping 192.168.123.161
 ```
 
-## 実行方法
-
-### Go2に接続して実行
-
-```bash
-pixi run run
-```
-
-`eth0` はお使いのイーサネットインターフェース名に合わせてください（`ip link` で確認）。
-
-別のインターフェース名を使う場合は以下のように直接指定してください。
-
-```bash
-pixi run python -m src --interface <your_interface>
-```
-
-### カメラと認識だけテスト（Go2不要）
+### Run gesture demo (dry mode)
 
 ```bash
 pixi run dry-run
 ```
 
-`dry-run` では `unitree_sdk2_python` は不要です。別モデルを使う場合は
-以下のように `--model` で `.task` ファイルを指定できます。
+## Pixi Tasks
 
-```bash
-pixi run python -m src --dry-run --model path/to/hand_landmarker.task
-```
+| Task                           | Purpose                                                       |
+| ------------------------------ | ------------------------------------------------------------- |
+| `pixi run bridge-server`       | Start the Robot Bridge FastAPI server on `127.0.0.1:50001`    |
+| `pixi run bridge-client`       | Run the sandbox client (requires subcommand)                  |
+| `pixi run dry-run`             | Gesture control demo in dry mode (camera + MediaPipe, no Go2) |
+| `pixi run run`                 | Gesture control demo with real Go2                            |
+| `pixi run install-unitree-sdk` | Install Unitree SDK2 Python from GitHub                       |
 
-## ジェスチャー一覧
+## Documentation
 
-| ジェスチャー          | Go2のアクション             |
-| --------------------- | --------------------------- |
-| パー（5本指を開く）   | StandUp（立ち上がり）       |
-| グー（握り拳）        | StandDown（伏せ）           |
-| サムズアップ          | Dance（ダンス）             |
-| ピース（V字）         | Hello（お辞儀）             |
-| 指差し（人差し指1本） | RecoveryStand（起き上がり） |
+| Document                                                                                                             | Content                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [`docs/tutorials/unitree-go2-foundation/basics.md`](./docs/tutorials/unitree-go2-foundation/basics.md)               | **Foundation Tutorial** (English, Go2-only) — 3-phase learning path: SDK install, action library & safety, missions & supervision |
+| [`docs/tutorials/nemo-claw-openclaw/basics.md`](./docs/tutorials/nemo-claw-openclaw/basics.md)                       | NemoClaw + OpenClaw basics                                                                                                        |
+| [`docs/tutorials/nemo-claw-openclaw/unitree-application/`](./docs/tutorials/nemo-claw-openclaw/unitree-application/) | OpenClaw application layer phases (builds on the foundation packages)                                                             |
 
-## 操作上の注意
-
-- カメラとの距離は 50cm〜150cm 程度が認識精度のベストレンジです
-- ジェスチャーは約0.5秒間保持するとコマンドが実行されます
-- コマンド実行後は2秒のクールダウンがあります
-- 終了は `q` キーを押してください
+See [`docs/README.md`](./docs/README.md) for the full documentation index.

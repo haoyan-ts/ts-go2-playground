@@ -2,6 +2,9 @@
 
 ## Phase 3: Context-Aware Mission Execution with Safety Supervisor
 
+> **See also**: [Foundation Tutorial](../../unitree-go2-foundation/basics.md) — for building the
+> Robot Bridge foundation packages used in this phase.
+
 このドキュメントは、NemoClaw / OpenClaw を用いて Unitree Go2 / G1 を制御する応用編チュートリアルの Phase 3 です。
 
 Phase 1 では、OpenClaw から Robot Bridge 経由で Unitree SDK2 の High-level API を 1 回だけ呼び出しました。
@@ -87,18 +90,18 @@ OpenClaw は Mission を選ぶだけ。
 
 ### 各コンポーネントの役割
 
-| コンポーネント | 役割 |
-|---|---|
-| OpenClaw | 自然言語指示を解釈し、許可済み Mission を選ぶ |
-| NemoClaw | OpenClaw sandbox、network policy、ログ、権限制御を担当 |
-| unitree_mission_client.py | OpenClaw から Robot Bridge を呼ぶための限定 client |
-| Robot Bridge | OpenClaw と Unitree SDK2 の間の安全 API サーバー |
-| Mission Supervisor | Mission 実行、監視、中断、完了管理 |
-| Mission Library | 許可済み Mission 定義 |
-| Action Library | Phase 2 で作った短い安全 Action 群 |
-| World State | demo zone、waypoint、robot 状態など |
-| Safety Supervisor | 速度、時間、エリア、E-stop、異常時 StopMove を管理 |
-| Logger | 実行履歴、失敗理由、最終状態を保存 |
+| コンポーネント            | 役割                                                   |
+| ------------------------- | ------------------------------------------------------ |
+| OpenClaw                  | 自然言語指示を解釈し、許可済み Mission を選ぶ          |
+| NemoClaw                  | OpenClaw sandbox、network policy、ログ、権限制御を担当 |
+| unitree_mission_client.py | OpenClaw から Robot Bridge を呼ぶための限定 client     |
+| Robot Bridge              | OpenClaw と Unitree SDK2 の間の安全 API サーバー       |
+| Mission Supervisor        | Mission 実行、監視、中断、完了管理                     |
+| Mission Library           | 許可済み Mission 定義                                  |
+| Action Library            | Phase 2 で作った短い安全 Action 群                     |
+| World State               | demo zone、waypoint、robot 状態など                    |
+| Safety Supervisor         | 速度、時間、エリア、E-stop、異常時 StopMove を管理     |
+| Logger                    | 実行履歴、失敗理由、最終状態を保存                     |
 
 ---
 
@@ -831,15 +834,15 @@ Phase 3 は、以下ができれば完成です。
 
 ## 19. Phase 3 でやらないこと
 
-| やらないこと | 理由 |
-|---|---|
-| OpenClaw に自由な軌道生成をさせる | 物理安全上危険 |
+| やらないこと                                 | 理由                          |
+| -------------------------------------------- | ----------------------------- |
+| OpenClaw に自由な軌道生成をさせる            | 物理安全上危険                |
 | OpenClaw に Unitree SDK を直接 import させる | Robot Bridge の意味がなくなる |
-| OpenClaw に新規 Mission を実行時生成させる | 安全検証されていない |
-| G1 に自由歩行 Mission をさせる | 転倒リスクが高い |
-| 画像認識結果だけで自動実行 | 誤認識リスクがある |
-| 外部Web情報で Mission を変更する | prompt injection リスクがある |
-| Low-level motor control | Phase 3 の範囲外 |
+| OpenClaw に新規 Mission を実行時生成させる   | 安全検証されていない          |
+| G1 に自由歩行 Mission をさせる               | 転倒リスクが高い              |
+| 画像認識結果だけで自動実行                   | 誤認識リスクがある            |
+| 外部Web情報で Mission を変更する             | prompt injection リスクがある |
+| Low-level motor control                      | Phase 3 の範囲外              |
 
 ---
 

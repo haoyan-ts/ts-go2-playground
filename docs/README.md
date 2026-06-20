@@ -1,23 +1,39 @@
-# ドキュメント一覧
+# Documentation Index
 
-このプロジェクトのドキュメントです。
+Project documentation for the Go2 Playground umbrella monorepo.
+
+## Packages
+
+| Package                                                             | Description                                                                                   |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| [`packages/go2-gesture-control/`](../packages/go2-gesture-control/) | Webcam + MediaPipe gesture control demo for Go2                                               |
+| [`packages/go2-robot-bridge/`](../packages/go2-robot-bridge/)       | Host-side FastAPI server — action library, safety supervisor, mission supervisor, SDK adapter |
+| [`packages/go2-bridge-client/`](../packages/go2-bridge-client/)     | Sandbox-side CLI to talk to the Robot Bridge (no SDK dependency)                              |
 
 ## Tutorials
 
+### Unitree Go2 Foundation (English, Go2-only)
+
+Foundation tutorial for building and using the Robot Bridge packages from scratch.
+
+| Document                                                                                     | Content                                                                                                                                                         |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`tutorials/unitree-go2-foundation/basics.md`](./tutorials/unitree-go2-foundation/basics.md) | **Foundation Tutorial** — 3-phase learning path: SDK install & first connection (Phase 1), action library & safety (Phase 2), missions & supervision (Phase 3). |
+
 ### NemoClaw / OpenClaw
 
-NemoClaw + OpenClaw を用いた開発のためのチュートリアルです。
+Tutorials for using NemoClaw with OpenClaw.
 
-| ドキュメント                                                                         | 内容                                                                                                       |
-| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| [`tutorials/nemo-claw-openclaw/basics.md`](./tutorials/nemo-claw-openclaw/basics.md) | NemoClaw + OpenClaw 基本チュートリアル（Phase 1–3）。インストール、sandbox操作、カスタム設定までをカバー。 |
+| Document                                                                             | Content                                                                                                      |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| [`tutorials/nemo-claw-openclaw/basics.md`](./tutorials/nemo-claw-openclaw/basics.md) | NemoClaw + OpenClaw basic tutorial (Phase 1–3). Covers install, sandbox operation, and custom configuration. |
 
-#### Unitree 応用編
+#### Unitree Application (OpenClaw layer)
 
-OpenClaw から Unitree Go2 / G1 を制御する応用編です（全3 Phase）。
+OpenClaw application phases for Go2 control, built on top of the foundation packages.
 
-| ドキュメント                                                                                                                                                       | 内容                                                                                               |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| [`tutorials/nemo-claw-openclaw/unitree-application/phase-1-single-call.md`](./tutorials/nemo-claw-openclaw/unitree-application/phase-1-single-call.md)             | **Phase 1** — Robot Bridge 経由で Unitree SDK High-level API を安全に1回だけ呼び出す。             |
-| [`tutorials/nemo-claw-openclaw/unitree-application/phase-2-action-sequence.md`](./tutorials/nemo-claw-openclaw/unitree-application/phase-2-action-sequence.md)     | **Phase 2** — Safe Action Library を用いた安全な動作シーケンス実行。dry-run → 人間確認 → 実行。    |
-| [`tutorials/nemo-claw-openclaw/unitree-application/phase-3-mission-execution.md`](./tutorials/nemo-claw-openclaw/unitree-application/phase-3-mission-execution.md) | **Phase 3** — Mission Library + Mission Supervisor によるコンテキスト認識型の Mission 実行と監視。 |
+| Document                                                                                                                                                           | Content                                                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| [`tutorials/nemo-claw-openclaw/unitree-application/phase-1-single-call.md`](./tutorials/nemo-claw-openclaw/unitree-application/phase-1-single-call.md)             | **Phase 1** — Single safe SDK call through Robot Bridge.                        |
+| [`tutorials/nemo-claw-openclaw/unitree-application/phase-2-action-sequence.md`](./tutorials/nemo-claw-openclaw/unitree-application/phase-2-action-sequence.md)     | **Phase 2** — Safe Action Library with dry-run → confirm → execute.             |
+| [`tutorials/nemo-claw-openclaw/unitree-application/phase-3-mission-execution.md`](./tutorials/nemo-claw-openclaw/unitree-application/phase-3-mission-execution.md) | **Phase 3** — Mission Library + Mission Supervisor for context-aware execution. |
