@@ -11,6 +11,7 @@ pip = "*"
 
 [pypi-dependencies]
 go2-gesture-control = { path = "./packages/go2-gesture-control", editable = true }
+go2-robot-bridge = { path = "./packages/go2-robot-bridge", editable = true }
 
 [tasks]
 run = {cmd = "python -m go2_gesture_control --interface eth0"}

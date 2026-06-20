@@ -1,0 +1,97 @@
+actions:
+  go2_status_check:
+    description: "Check Go2 status only. No physical motion."
+    risk: read_only
+    requires_confirmation: false
+    steps:
+      - type: status
+
+  go2_stop:
+    description: "Send StopMove to Go2."
+    risk: low
+    requires_confirmation: false
+    steps:
+      - type: stop
+
+  go2_balance_stand:
+    description: "Put Go2 into balance stand mode."
+    risk: low
+    requires_confirmation: false
+    steps:
+      - type: status
+      - type: balance_stand
+      - type: wait
+        duration: 0.5
+      - type: status
+
+  go2_forward_short:
+    description: "Move forward slowly for a short time, then stop."
+    risk: low_motion
+    requires_confirmation: true
+    steps:
+      - type: status
+      - type: balance_stand
+      - type: wait
+        duration: 0.5
+      - type: move
+        vx: 0.12
+        vy: 0.0
+        vyaw: 0.0
+        duration: 0.8
+      - type: stop
+      - type: wait
+        duration: 0.3
+      - type: status
+
+  go2_turn_left_short:
+    description: "Turn left slowly, then stop."
+    risk: low_motion
+    requires_confirmation: true
+    steps:
+      - type: status
+      - type: move
+        vx: 0.0
+        vy: 0.0
+        vyaw: 0.20
+        duration: 0.7
+      - type: stop
+      - type: status
+
+  go2_turn_right_short:
+    description: "Turn right slowly, then stop."
+    risk: low_motion
+    requires_confirmation: true
+    steps:
+      - type: status
+      - type: move
+        vx: 0.0
+        vy: 0.0
+        vyaw: -0.20
+        duration: 0.7
+      - type: stop
+      - type: status
+
+  go2_greeting_demo:
+    description: "Small greeting motion: stand, turn left, turn right, stop."
+    risk: low_motion
+    requires_confirmation: true
+    steps:
+      - type: status
+      - type: balance_stand
+      - type: wait
+        duration: 0.8
+      - type: move
+        vx: 0.0
+        vy: 0.0
+        vyaw: 0.20
+        duration: 0.6
+      - type: stop
+      - type: wait
+        duration: 0.3
+      - type: move
+        vx: 0.0
+        vy: 0.0
+        vyaw: -0.20
+        duration: 0.6
+      - type: stop
+      - type: status

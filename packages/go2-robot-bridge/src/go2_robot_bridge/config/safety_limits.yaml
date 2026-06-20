@@ -1,0 +1,18 @@
+limits:
+  max_action_time: 5.0
+  max_move_duration: 1.0
+  max_move_steps_per_action: 2
+
+  go2:
+    max_vx: 0.20
+    max_vy: 0.10
+    max_vyaw: 0.30
+
+rules:
+  require_status_before_motion: true
+  require_status_after_motion: true
+  require_stop_after_each_move: true
+  require_final_stop: true
+  require_human_confirmation_for_motion: true
+  reject_unknown_action: true
+  reject_freeform_motion: true

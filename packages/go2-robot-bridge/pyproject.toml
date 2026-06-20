@@ -1,0 +1,25 @@
+[project]
+name = "go2-robot-bridge"
+version = "0.1.0"
+description = "Robot Bridge foundation for Unitree Go2 — action library, safety supervisor, SDK adapter"
+requires-python = ">=3.10,<3.12"
+dependencies = [
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+go2 = [
+    "unitree_sdk2_python",
+]
+server = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
