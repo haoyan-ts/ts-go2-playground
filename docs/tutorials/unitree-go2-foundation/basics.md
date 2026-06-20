@@ -145,11 +145,12 @@ Expected response:
 ```json
 {
   "status": "ok",
-  "dry_mode": true
+  "dry_mode": true,
+  "control_target": "dry"
 }
 ```
 
-The `dry_mode: true` field confirms the server is running without real hardware.
+The `dry_mode: true` field preserves compatibility with older clients. The `control_target: "dry"` field names the active Robot Bridge execution target.
 
 ---
 
@@ -172,7 +173,8 @@ Expected:
   "connected": true,
   "mode": "sport",
   "safe_to_move": true,
-  "dry_mode": true
+  "dry_mode": true,
+  "control_target": "dry"
 }
 ```
 
@@ -187,7 +189,8 @@ Expected:
 ```json
 {
   "executed": "StopMove",
-  "dry_mode": true
+  "dry_mode": true,
+  "control_target": "dry"
 }
 ```
 
@@ -206,7 +209,8 @@ Expected:
 ```json
 {
   "executed": "BalanceStand",
-  "dry_mode": true
+  "dry_mode": true,
+  "control_target": "dry"
 }
 ```
 
@@ -215,27 +219,27 @@ Supported commands at `/robot/command`: `status`, `stop`, `balance_stand`, `stan
 
 ---
 
-## 1.7 Switch to Real Mode (Optional)
+## 1.7 Switch Control Targets (Optional)
 
-> **WARNING**: Only do this when Go2 is physically present, on a flat surface, with
-> the emergency stop accessible. Keep the physical remote nearby.
+Robot Bridge keeps the same API while changing the control target behind it.
+Use `BRIDGE_TARGET=dry`, `BRIDGE_TARGET=real_go2`, or `BRIDGE_TARGET=isaac_sim`.
 
-Stop the dry-mode server (Ctrl+C) and start the server forcing real mode.
+### Isaac Sim target
 
-The `app.py` module uses `UnitreeGo2Adapter(dry_mode=False)` when configured.
-To run the server in real mode, set the environment variable:
-
-```bash
-export GO2_DRY_MODE=false
-```
-
-Then start the server with the Go2 optional dependency:
+Start an Isaac Sim-side HTTP control server first, then run Robot Bridge with:
 
 ```bash
-pixi run bridge-server
+pixi run bridge-server-isaac
 ```
 
-Verify real mode:
+The built-in task uses:
+
+```bash
+BRIDGE_TARGET=isaac_sim
+ISAAC_SIM_URL=http://127.0.0.1:51000
+```
+
+Verify Isaac Sim mode:
 
 ```bash
 pixi run python -m go2_bridge_client health
@@ -246,15 +250,58 @@ Expected:
 ```json
 {
   "status": "ok",
-  "dry_mode": false
+  "dry_mode": false,
+  "control_target": "isaac_sim"
 }
 ```
 
-> **Important**: Return to dry mode for all Phase 2 and Phase 3 exercises below.
-> Real-mode testing should only happen after you understand the safety system.
+Robot Bridge expects the Isaac Sim control server to expose this minimum HTTP contract:
+
+| Method | Path              | Body                           |
+| ------ | ----------------- | ------------------------------ |
+| `GET`  | `/status`         | none                           |
+| `POST` | `/stop`           | none                           |
+| `POST` | `/balance_stand`  | none                           |
+| `POST` | `/move`           | `vx`, `vy`, `vyaw`, `duration` |
+| `POST` | `/stand_up`       | none                           |
+| `POST` | `/stand_down`     | none                           |
+| `POST` | `/hello`          | none                           |
+| `POST` | `/dance1`         | none                           |
+| `POST` | `/recovery_stand` | none                           |
+
+Successful Isaac Sim responses should include `executed` and `control_target: "isaac_sim"`. Unsupported commands must return a non-success HTTP response so Robot Bridge can report the command as unsupported instead of treating it as a no-op success.
+
+### Real Go2 target
+
+> **WARNING**: Only do this when Go2 is physically present, on a flat surface, with
+> the emergency stop accessible. Keep the physical remote nearby.
+
+Stop the current server (Ctrl+C), install the Go2 optional dependency, then start Robot Bridge with:
+
+```bash
+BRIDGE_TARGET=real_go2 GO2_NETWORK_INTERFACE=eth0 pixi run bridge-server
+```
+
+Verify real Go2 mode:
+
+```bash
+pixi run python -m go2_bridge_client health
+```
+
+Expected:
+
+```json
+{
+  "status": "ok",
+  "dry_mode": false,
+  "control_target": "real_go2"
+}
+```
+
+> **Important**: Return to the dry target for all Phase 2 and Phase 3 exercises below.
+> Real Go2 testing should only happen after you understand the safety system.
 
 ---
-
 ## 1.8 Phase 1 Completion Checklist
 
 You can move to Phase 2 when all items are true:
@@ -262,7 +309,7 @@ You can move to Phase 2 when all items are true:
 - [ ] `pixi run install-unitree-sdk` completes without errors.
 - [ ] `ping 192.168.123.161` returns replies (or you are working dry-mode only).
 - [ ] `pixi run bridge-server` starts and shows `Uvicorn running on http://127.0.0.1:50001`.
-- [ ] `pixi run python -m go2_bridge_client health` returns `{"status":"ok","dry_mode":true}`.
+- [ ] `pixi run python -m go2_bridge_client health` returns `{"status":"ok","dry_mode":true,"control_target":"dry"}`.
 - [ ] `pixi run python -m go2_bridge_client status` returns robot status dict.
 - [ ] `pixi run python -m go2_bridge_client stop` returns `{"executed":"StopMove"}`.
 - [ ] You understand that `/robot/command` is the Phase-1 low-level interface (not the
@@ -812,7 +859,7 @@ You can consider the tutorial complete when all items are true:
 
 | Method | Path                       | Purpose                                      |
 | ------ | -------------------------- | -------------------------------------------- |
-| `GET`  | `/health`                  | Server health + dry_mode status              |
+| `GET`  | `/health`                  | Server health + dry_mode and control_target  |
 | `GET`  | `/robot/status`            | Robot status                                 |
 | `POST` | `/robot/stop`              | Emergency stop                               |
 | `POST` | `/robot/command`           | Phase-1 single command dispatch              |

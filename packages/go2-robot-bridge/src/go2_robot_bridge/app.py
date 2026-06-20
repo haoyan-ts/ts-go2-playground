@@ -79,14 +79,18 @@ def create_app(
     # Resolve defaults
     from .action_library import ActionLibrary
     from .safety_supervisor import SafetySupervisor
-    from .sdk_adapter import UnitreeGo2Adapter
+    from .sdk_adapter import (
+        AdapterCommandError,
+        UnsupportedCommandError,
+        create_go2_adapter_from_env,
+    )
     from .logger import Logger
     from .mission_library import MissionLibrary
     from .mission_supervisor import MissionSupervisor
 
     _action_library = action_library or ActionLibrary()
     _safety_supervisor = safety_supervisor or SafetySupervisor()
-    _adapter = adapter or UnitreeGo2Adapter(dry_mode=True)
+    _adapter = adapter or create_go2_adapter_from_env()
     _logger = logger or Logger()
     _mission_library = MissionLibrary()
     _mission_supervisor = MissionSupervisor(
@@ -109,7 +113,11 @@ def create_app(
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "dry_mode": _adapter.dry_mode}
+        return {
+            "status": "ok",
+            "dry_mode": _adapter.dry_mode,
+            "control_target": _adapter.control_target,
+        }
 
     # -----------------------------------------------------------------------
     # Phase 1 routes — robot direct
@@ -152,7 +160,12 @@ def create_app(
             )
 
         method = getattr(_adapter, cmd)
-        result = method(**req.params)
+        try:
+            result = method(**req.params)
+        except UnsupportedCommandError as e:
+            raise HTTPException(status_code=501, detail=str(e))
+        except AdapterCommandError as e:
+            raise HTTPException(status_code=502, detail=str(e))
         _logger.log_event("command_executed", {"command": cmd, "result": result})
         return result
 
@@ -216,9 +229,17 @@ def create_app(
                 result = _execute_step(step_type, step)
                 step_results.append({"type": step_type, "result": result})
                 _logger.log_step(step_type, result)
+        except UnsupportedCommandError as e:
+            _logger.log_action_error(name, str(e))
+            _stop_after_error()
+            raise HTTPException(status_code=501, detail=str(e))
+        except AdapterCommandError as e:
+            _logger.log_action_error(name, str(e))
+            _stop_after_error()
+            raise HTTPException(status_code=502, detail=str(e))
         except Exception as e:
             _logger.log_action_error(name, str(e))
-            _adapter.stop()
+            _stop_after_error()
             raise HTTPException(
                 status_code=500,
                 detail=f"Action '{name}' failed at step '{step_type}': {e}",
@@ -303,6 +324,10 @@ def create_app(
             raise HTTPException(status_code=403, detail=str(e))
         except TimeoutError as e:
             raise HTTPException(status_code=408, detail=str(e))
+        except UnsupportedCommandError as e:
+            raise HTTPException(status_code=501, detail=str(e))
+        except AdapterCommandError as e:
+            raise HTTPException(status_code=502, detail=str(e))
         except Exception as e:
             raise HTTPException(
                 status_code=500,
@@ -331,9 +356,21 @@ def create_app(
 
 
 # ---------------------------------------------------------------------------
-# Step execution helper
+# Error handling helpers
 # ---------------------------------------------------------------------------
 
+
+def _stop_after_error() -> None:
+    """Best-effort stop that preserves the original route error."""
+    try:
+        _adapter.stop()
+    except Exception as stop_error:
+        _logger.log_event("stop_after_error_failed", {"error": str(stop_error)})
+
+
+# ---------------------------------------------------------------------------
+# Step execution helper
+# ---------------------------------------------------------------------------
 
 def _execute_step(step_type: str, step: Dict[str, Any]) -> Dict[str, Any]:
     """Dispatch a single action step to the SDK adapter."""

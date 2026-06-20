@@ -21,5 +21,6 @@ pydantic = ">=2.13.4, <3"
 run = {cmd = "python -m go2_gesture_control --interface eth0"}
 dry-run = {cmd = "python -m go2_gesture_control --dry-run"}
 bridge-server = {cmd = "uvicorn go2_robot_bridge.app:app --host 127.0.0.1 --port 50001"}
+bridge-server-isaac = {cmd = "uvicorn go2_robot_bridge.app:app --host 127.0.0.1 --port 50001", env = {BRIDGE_TARGET = "isaac_sim", ISAAC_SIM_URL = "http://127.0.0.1:51000"}}
 bridge-client = {cmd = "python -m go2_bridge_client"}
 install-unitree-sdk = "python -m pip install git+https://github.com/unitreerobotics/unitree_sdk2_python.git"
