@@ -24,9 +24,10 @@ Foundation tutorial for building and using the Robot Bridge packages from scratc
 
 Tutorials for using NemoClaw with OpenClaw.
 
-| Document                                                                             | Content                                                                                                      |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| [`tutorials/nemo-claw-openclaw/basics.md`](./tutorials/nemo-claw-openclaw/basics.md) | NemoClaw + OpenClaw basic tutorial (Phase 1–3). Covers install, sandbox operation, and custom configuration. |
+| Document                                                                                       | Content                                                                                                                     |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [`tutorials/nemo-claw-openclaw/basics.md`](./tutorials/nemo-claw-openclaw/basics.md)           | NemoClaw + OpenClaw basic tutorial (Phase 1–3). Covers install, sandbox operation, and custom configuration.                |
+| [`tutorials/nemo-claw-openclaw/demo-how-to.md`](./tutorials/nemo-claw-openclaw/demo-how-to.md) | **Demo How-to** — end-to-end NVIDIA Agent AI x Robotics Go2 demo setup, rehearsal, real-robot switch, and final validation. |
 
 #### Unitree Application (OpenClaw layer)
 

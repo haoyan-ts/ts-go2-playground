@@ -79,6 +79,7 @@ pixi run dry-run
 | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | [`docs/tutorials/unitree-go2-foundation/basics.md`](./docs/tutorials/unitree-go2-foundation/basics.md)               | **Foundation Tutorial** (English, Go2-only) — 3-phase learning path: SDK install, action library & safety, missions & supervision |
 | [`docs/tutorials/nemo-claw-openclaw/basics.md`](./docs/tutorials/nemo-claw-openclaw/basics.md)                       | NemoClaw + OpenClaw basics                                                                                                        |
+| [`docs/tutorials/nemo-claw-openclaw/demo-how-to.md`](./docs/tutorials/nemo-claw-openclaw/demo-how-to.md)             | **Demo How-to** — NVIDIA Agent AI x Robotics向けGo2デモを環境整備から最終検証まで通す手順                                         |
 | [`docs/tutorials/nemo-claw-openclaw/unitree-application/`](./docs/tutorials/nemo-claw-openclaw/unitree-application/) | OpenClaw application layer phases (builds on the foundation packages)                                                             |
 
 See [`docs/README.md`](./docs/README.md) for the full documentation index.
