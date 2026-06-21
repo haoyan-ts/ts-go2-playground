@@ -124,7 +124,9 @@ class TestIsaacSimGo2Adapter:
             seen["timeout"] = timeout
             return _FakeResponse(b'{"robot":"go2","connected":true}')
 
-        monkeypatch.setattr("go2_robot_bridge.sdk_adapter.request.urlopen", fake_urlopen)
+        monkeypatch.setattr(
+            "go2_robot_bridge.sdk_adapter.request.urlopen", fake_urlopen
+        )
         adapter = IsaacSimGo2Adapter("http://sim.local:51000", timeout=3.0)
 
         result = adapter.status()
@@ -148,7 +150,9 @@ class TestIsaacSimGo2Adapter:
             seen["body"] = req.data.decode("utf-8")
             return _FakeResponse(b'{"executed":"controller_command"}')
 
-        monkeypatch.setattr("go2_robot_bridge.sdk_adapter.request.urlopen", fake_urlopen)
+        monkeypatch.setattr(
+            "go2_robot_bridge.sdk_adapter.request.urlopen", fake_urlopen
+        )
         adapter = IsaacSimGo2Adapter("http://sim.local:51000")
 
         result = adapter.execute_controller_command(
@@ -174,7 +178,9 @@ class TestIsaacSimGo2Adapter:
                 fp=io.BytesIO(b'{"detail":"controller not implemented"}'),
             )
 
-        monkeypatch.setattr("go2_robot_bridge.sdk_adapter.request.urlopen", fake_urlopen)
+        monkeypatch.setattr(
+            "go2_robot_bridge.sdk_adapter.request.urlopen", fake_urlopen
+        )
         adapter = IsaacSimGo2Adapter("http://sim.local:51000")
 
         with pytest.raises(UnsupportedCommandError, match="controller-command"):
@@ -193,7 +199,9 @@ class TestMuJoCoGo2Adapter:
             seen["body"] = req.data.decode("utf-8")
             return _FakeResponse(b'{"executed":"controller_command"}')
 
-        monkeypatch.setattr("go2_robot_bridge.sdk_adapter.request.urlopen", fake_urlopen)
+        monkeypatch.setattr(
+            "go2_robot_bridge.sdk_adapter.request.urlopen", fake_urlopen
+        )
         adapter = MuJoCoGo2Adapter("http://mujoco.local:52000")
 
         result = adapter.execute_controller_command(

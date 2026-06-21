@@ -89,7 +89,7 @@ def cmd_dry_run(action_name: str):
     print(f"  Description:  {data['description']}")
     print(f"  Risk:         {data['risk']}")
     print(f"  Confirmation: {data['requires_confirmation']}")
-    print(f"  Steps:")
+    print("  Steps:")
     for i, step in enumerate(data.get("steps", []), 1):
         print(f"    {i}. {step}")
 
@@ -146,7 +146,7 @@ def cmd_mission_dry_run(mission_name: str):
     print(f"  Risk:           {data['risk']}")
     print(f"  Confirmation:   {data['requires_confirmation']}")
     print(f"  Max Duration:   {data['max_duration_s']}s")
-    print(f"  Steps:")
+    print("  Steps:")
     for i, step in enumerate(data.get("steps", []), 1):
         print(f"    {i}. {step}")
 

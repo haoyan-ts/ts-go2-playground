@@ -19,7 +19,6 @@ class TestSafetySupervisor:
         supervisor.validate_action("go2_status_check", action, confirmed=False)
         # Should not raise
 
-
     def test_validate_allowed_posture_passes(self, supervisor):
         action = {
             "requires_confirmation": False,

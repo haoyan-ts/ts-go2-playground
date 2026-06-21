@@ -24,23 +24,22 @@ def _get_fastapi():
 # ---------------------------------------------------------------------------
 
 
-class ExecuteRequest:
+class ExecuteRequest:  # type: ignore[no-redef]
     """Will be replaced by Pydantic model at app creation time."""
 
     confirmed: bool = False
-
 
 
 # ---------------------------------------------------------------------------
 # Singletons (lazy init via create_app)
 # ---------------------------------------------------------------------------
 
-_action_library = None
-_safety_supervisor = None
-_adapter = None
-_logger = None
-_mission_library = None
-_mission_supervisor = None
+_action_library: Any = None
+_safety_supervisor: Any = None
+_adapter: Any = None
+_logger: Any = None
+_mission_library: Any = None
+_mission_supervisor: Any = None
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +176,7 @@ def create_app(
         _logger.log_action_start(name)
         t0 = time.time()
         step_results = []
+        step_type: str = "<none>"
 
         try:
             for step in action.get("steps", []):
@@ -326,6 +326,7 @@ def _stop_after_error() -> None:
 # ---------------------------------------------------------------------------
 # Step execution helper
 # ---------------------------------------------------------------------------
+
 
 def _execute_step(step_type: str, step: Dict[str, Any]) -> Dict[str, Any]:
     """Dispatch a single action step through the canonical bridge executor."""
