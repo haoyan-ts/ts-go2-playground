@@ -30,12 +30,6 @@ class ExecuteRequest:
     confirmed: bool = False
 
 
-class CommandRequest:
-    """Will be replaced by Pydantic model at app creation time."""
-
-    command: str = ""
-    params: Dict[str, Any] = {}
-
 
 # ---------------------------------------------------------------------------
 # Singletons (lazy init via create_app)
@@ -63,7 +57,7 @@ def create_app(
     """Build and wire the FastAPI app with the given (or default) modules."""
     global _action_library, _safety_supervisor, _adapter, _logger
     global _mission_library, _mission_supervisor
-    global ExecuteRequest, CommandRequest
+    global ExecuteRequest
 
     # Lazy-import FastAPI + Pydantic (optional 'server' deps)
     _get_fastapi()
@@ -71,10 +65,6 @@ def create_app(
     # Redefine request models as proper Pydantic models
     class ExecuteRequest(BaseModel):  # type: ignore[name-defined]
         confirmed: bool = False
-
-    class CommandRequest(BaseModel):  # type: ignore[name-defined]
-        command: str
-        params: Dict[str, Any] = {}
 
     # Resolve defaults
     from .action_library import ActionLibrary
@@ -135,42 +125,7 @@ def create_app(
         _logger.log_stop()
         return result
 
-    @app.post("/robot/command")
-    async def robot_command(req: CommandRequest):
-        """Phase-1 style single-command dispatch.
-
-        Supported commands: status, stop, balance_stand, stand_up,
-        stand_down, hello, dance1, recovery_stand.
-        """
-        valid = {
-            "status",
-            "stop",
-            "balance_stand",
-            "stand_up",
-            "stand_down",
-            "hello",
-            "dance1",
-            "recovery_stand",
-        }
-        cmd = req.command
-        if cmd not in valid:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown command '{cmd}'. Allowed: {sorted(valid)}",
-            )
-
-        method = getattr(_adapter, cmd)
-        try:
-            result = method(**req.params)
-        except UnsupportedCommandError as e:
-            raise HTTPException(status_code=501, detail=str(e))
-        except AdapterCommandError as e:
-            raise HTTPException(status_code=502, detail=str(e))
-        _logger.log_event("command_executed", {"command": cmd, "result": result})
-        return result
-
-    # -----------------------------------------------------------------------
-    # Phase 2 routes — action library
+    # -----------------------------------------------------------------------`r`n    # Phase 2 routes — action library
     # -----------------------------------------------------------------------
 
     @app.get("/actions")
@@ -373,37 +328,10 @@ def _stop_after_error() -> None:
 # ---------------------------------------------------------------------------
 
 def _execute_step(step_type: str, step: Dict[str, Any]) -> Dict[str, Any]:
-    """Dispatch a single action step to the SDK adapter."""
-    if step_type == "status":
-        return _adapter.status()
-    elif step_type == "stop":
-        return _adapter.stop()
-    elif step_type == "balance_stand":
-        return _adapter.balance_stand()
-    elif step_type == "stand_up":
-        return _adapter.stand_up()
-    elif step_type == "stand_down":
-        return _adapter.stand_down()
-    elif step_type == "hello":
-        return _adapter.hello()
-    elif step_type == "dance1":
-        return _adapter.dance1()
-    elif step_type == "recovery_stand":
-        return _adapter.recovery_stand()
-    elif step_type == "move":
-        clamped = _safety_supervisor.clamp_move_step(step)
-        return _adapter.move(
-            vx=clamped["vx"],
-            vy=clamped["vy"],
-            vyaw=clamped["vyaw"],
-            duration=clamped["duration"],
-        )
-    elif step_type == "wait":
-        duration = float(step.get("duration", 0.0))
-        time.sleep(duration)
-        return {"waited_s": duration}
-    else:
-        raise ValueError(f"Unknown step type: {step_type}")
+    """Dispatch a single action step through the canonical bridge executor."""
+    from .action_executor import execute_bridge_step
+
+    return execute_bridge_step(step, _adapter, _safety_supervisor)
 
 
 # ---------------------------------------------------------------------------

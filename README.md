@@ -57,15 +57,16 @@ sudo ip link set eth0 up
 ping 192.168.123.161
 ```
 
-### Run the bridge server for Isaac Sim
+### Run the bridge server for simulator targets
 
-Robot Bridge can target a Go2 model inside Isaac Sim without exposing the simulator API to agents or sandbox clients. Start an Isaac Sim-side HTTP control server first, then run:
+Robot Bridge can target Go2 models inside Isaac Sim or MuJoCo without exposing simulator APIs to agents or sandbox clients. Start the simulator-side HTTP control server first, then run one of:
 
 ```bash
 pixi run bridge-server-isaac
+pixi run bridge-server-mujoco
 ```
 
-The default Isaac Sim control URL for this task is `http://127.0.0.1:51000`. Override it with `ISAAC_SIM_URL` when needed. Robot Bridge still listens on `127.0.0.1:50001` and returns both `dry_mode` and `control_target` in health/status responses.
+The default Isaac Sim control URL is `http://127.0.0.1:51000`; override it with `ISAAC_SIM_URL`. The default MuJoCo control URL is `http://127.0.0.1:52000`; override it with `MUJOCO_URL`. Simulator sidecars expose `/status`, `/stop`, and `/controller-command`; Robot Bridge still listens on `127.0.0.1:50001` and returns both `dry_mode` and `control_target` in health/status responses.
 
 ### Run gesture demo (dry mode)
 
@@ -79,6 +80,7 @@ pixi run dry-run
 | ------------------------------ | ------------------------------------------------------------- |
 | `pixi run bridge-server`       | Start the Robot Bridge FastAPI server on `127.0.0.1:50001`    |
 | `pixi run bridge-server-isaac` | Start Robot Bridge with `BRIDGE_TARGET=isaac_sim`             |
+| `pixi run bridge-server-mujoco` | Start Robot Bridge with `BRIDGE_TARGET=mujoco`                |
 | `pixi run bridge-client`       | Run the sandbox client (requires subcommand)                  |
 | `pixi run dry-run`             | Gesture control demo in dry mode (camera + MediaPipe, no Go2) |
 | `pixi run run`                 | Gesture control demo with real Go2                            |

@@ -19,7 +19,8 @@ actions:
     requires_confirmation: false
     steps:
       - type: status
-      - type: balance_stand
+      - type: posture
+        name: balance_stand
       - type: wait
         duration: 0.5
       - type: status
@@ -30,7 +31,8 @@ actions:
     requires_confirmation: true
     steps:
       - type: status
-      - type: balance_stand
+      - type: posture
+        name: balance_stand
       - type: wait
         duration: 0.5
       - type: move
@@ -77,7 +79,8 @@ actions:
     requires_confirmation: true
     steps:
       - type: status
-      - type: balance_stand
+      - type: posture
+        name: balance_stand
       - type: wait
         duration: 0.8
       - type: move

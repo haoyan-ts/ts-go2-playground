@@ -9,7 +9,7 @@ The controlled API boundary for Go2 commands, actions, missions, safety checks, 
 _Avoid_: direct SDK access, raw robot access
 
 **Control Target**:
-The execution destination behind Robot Bridge. A control target can be dry, a physical Go2, or an Isaac Sim Go2 while preserving the same agent-facing API.
+The execution destination behind Robot Bridge. A control target can be dry, a physical Go2, an Isaac Sim Go2, or a MuJoCo Go2 while preserving the same agent-facing API.
 _Avoid_: mode, backend, environment
 
 **Dry Target**:
@@ -21,11 +21,23 @@ A control target that sends approved commands to a physical Unitree Go2 through 
 _Avoid_: real mode, hardware mode
 
 **Isaac Sim Target**:
-A control target that forwards approved Go2 commands from Robot Bridge to a Go2 model running inside Isaac Sim.
+A control target that applies Robot Bridge controller-level commands to a Go2 model running inside Isaac Sim.
 _Avoid_: dry mode, simulator mode
 
+**MuJoCo Target**:
+A control target that applies Robot Bridge controller-level commands to a Go2 model running inside MuJoCo.
+_Avoid_: dry mode, simulator mode, MuJoCo backend
+
+**Controller-Level Command**:
+A target-facing Go2 control primitive consumed by a robot controller, such as an RL policy or classical controller, without exposing actuator-level control through Robot Bridge.
+_Avoid_: action, mission, actuator command, simulator action, raw joint control
+
+**Controller Command Envelope**:
+The target-facing message shape Robot Bridge uses to send controller-level intent and parameters to a control target while leaving the target's concrete controller implementation open.
+_Avoid_: actuator packet, joint command schema, simulator API
+
 **Action**:
-A named, approved sequence of low-level Go2 steps exposed by Robot Bridge.
+A named, approved sequence of Robot Bridge steps exposed to agents and sandbox clients.
 _Avoid_: script, macro
 
 **Mission**:

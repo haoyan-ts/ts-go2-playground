@@ -19,6 +19,33 @@ class TestSafetySupervisor:
         supervisor.validate_action("go2_status_check", action, confirmed=False)
         # Should not raise
 
+
+    def test_validate_allowed_posture_passes(self, supervisor):
+        action = {
+            "requires_confirmation": False,
+            "risk": "low",
+            "steps": [{"type": "posture", "name": "balance_stand"}],
+        }
+        supervisor.validate_action("go2_balance_stand", action, confirmed=False)
+
+    def test_validate_unknown_posture_raises(self, supervisor):
+        action = {
+            "requires_confirmation": False,
+            "risk": "low",
+            "steps": [{"type": "posture", "name": "backflip"}],
+        }
+        with pytest.raises(ValueError, match="Unsupported posture"):
+            supervisor.validate_action("unsafe_posture", action, confirmed=False)
+
+    def test_validate_legacy_demo_step_raises(self, supervisor):
+        action = {
+            "requires_confirmation": False,
+            "risk": "low",
+            "steps": [{"type": "dance1"}],
+        }
+        with pytest.raises(ValueError, match="Unknown action step type"):
+            supervisor.validate_action("go2_dance", action, confirmed=False)
+
     def test_validate_motion_without_confirm_raises(self, supervisor):
         """Motion actions require confirmation."""
         action = {

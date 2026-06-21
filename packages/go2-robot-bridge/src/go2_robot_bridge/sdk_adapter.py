@@ -1,12 +1,14 @@
 """Adapters for Unitree Go2 control targets."""
 
 import json
+import logging
 import os
 import time
-import logging
 from typing import Any, Dict
 from urllib import error, request
 from urllib.parse import urljoin
+
+from .controller_command import ControllerCommandEnvelope
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +24,8 @@ class UnsupportedCommandError(AdapterCommandError):
 class UnitreeGo2Adapter:
     """Adapter wrapping Unitree SDK2 SportClient calls.
 
-    In dry_mode, all calls return structured dicts without touching real hardware.
-    In real mode, imports unitree_sdk2_python and calls the SportClient directly.
+    In dry mode, calls return structured dicts without touching real hardware.
+    In real Go2 mode, calls import unitree_sdk2_python and use SportClient.
     """
 
     def __init__(self, dry_mode: bool = True, network_interface: str = "eth0"):
@@ -51,118 +53,85 @@ class UnitreeGo2Adapter:
 
     def status(self) -> Dict[str, Any]:
         """Return robot status. Read-only, safe to call anytime."""
-        if self.dry_mode:
-            return {
-                "robot": "go2",
-                "connected": True,
-                "mode": "sport",
-                "safe_to_move": True,
-                "dry_mode": True,
-                "control_target": self.control_target,
-            }
-
         return {
             "robot": "go2",
-            "connected": self._client is not None,
+            "connected": self.dry_mode or self._client is not None,
             "mode": "sport",
             "safe_to_move": True,
-            "dry_mode": False,
+            "dry_mode": self.dry_mode,
             "control_target": self.control_target,
         }
 
     def stop(self) -> Dict[str, Any]:
-        """Send StopMove to Go2. Always safe."""
-        if self.dry_mode:
-            return self._result("StopMove")
-
-        self._client.StopMove()
+        """Stop the control target. Always safe."""
+        if not self.dry_mode:
+            self._client.StopMove()
         return self._result("StopMove")
 
-    def balance_stand(self) -> Dict[str, Any]:
-        """Put Go2 into balance stand mode."""
-        if self.dry_mode:
-            return self._result("BalanceStand")
-
-        self._client.BalanceStand()
-        return self._result("BalanceStand")
-
-    def move(
-        self, vx: float, vy: float, vyaw: float, duration: float
+    def execute_controller_command(
+        self, envelope: ControllerCommandEnvelope
     ) -> Dict[str, Any]:
-        """Move Go2 with given velocities for a duration. Always stops after moving.
+        """Execute a canonical Robot Bridge controller-level command."""
+        if envelope.intent == "move":
+            return self._execute_move(envelope)
+        if envelope.intent == "posture":
+            return self._execute_posture(envelope)
+        raise UnsupportedCommandError(
+            f"Unsupported controller intent '{envelope.intent}' for {self.control_target}"
+        )
 
-        Args:
-            vx: Forward velocity (m/s).
-            vy: Lateral velocity (m/s).
-            vyaw: Yaw angular velocity (rad/s).
-            duration: Movement duration in seconds.
-        """
+    def _execute_move(self, envelope: ControllerCommandEnvelope) -> Dict[str, Any]:
+        params = envelope.params
+        vx = float(params["vx"])
+        vy = float(params["vy"])
+        vyaw = float(params["vyaw"])
+        duration = float(params["duration"])
+
         try:
-            if self.dry_mode:
-                time.sleep(duration)
-                return {
-                    "executed": "Move",
+            if not self.dry_mode:
+                self._client.Move(vx, vy, vyaw)
+            time.sleep(duration)
+            return {
+                "executed": "controller_command",
+                "intent": "move",
+                "controller": envelope.controller,
+                "params": {
                     "vx": vx,
                     "vy": vy,
                     "vyaw": vyaw,
                     "duration": duration,
-                    "dry_mode": True,
-                    "control_target": self.control_target,
-                }
-
-            self._client.Move(vx, vy, vyaw)
-            time.sleep(duration)
-            return {
-                "executed": "Move",
-                "vx": vx,
-                "vy": vy,
-                "vyaw": vyaw,
-                "duration": duration,
-                "dry_mode": False,
+                },
+                "dry_mode": self.dry_mode,
                 "control_target": self.control_target,
             }
         finally:
             self.stop()
 
-    def stand_up(self) -> Dict[str, Any]:
-        """Make Go2 stand up."""
-        if self.dry_mode:
-            return self._result("StandUp")
+    def _execute_posture(self, envelope: ControllerCommandEnvelope) -> Dict[str, Any]:
+        name = str(envelope.params["name"])
+        sdk_method = {
+            "balance_stand": "BalanceStand",
+            "stand_up": "StandUp",
+            "stand_down": "StandDown",
+            "recovery_stand": "RecoveryStand",
+        }.get(name)
+        if sdk_method is None:
+            raise UnsupportedCommandError(
+                f"Unsupported posture '{name}' for {self.control_target}"
+            )
 
-        self._client.StandUp()
-        return self._result("StandUp")
+        if not self.dry_mode:
+            getattr(self._client, sdk_method)()
 
-    def stand_down(self) -> Dict[str, Any]:
-        """Make Go2 stand down."""
-        if self.dry_mode:
-            return self._result("StandDown")
-
-        self._client.StandDown()
-        return self._result("StandDown")
-
-    def hello(self) -> Dict[str, Any]:
-        """Make Go2 perform hello gesture."""
-        if self.dry_mode:
-            return self._result("Hello")
-
-        self._client.Hello()
-        return self._result("Hello")
-
-    def dance1(self) -> Dict[str, Any]:
-        """Make Go2 perform dance1."""
-        if self.dry_mode:
-            return self._result("Dance1")
-
-        self._client.Dance1()
-        return self._result("Dance1")
-
-    def recovery_stand(self) -> Dict[str, Any]:
-        """Make Go2 perform recovery stand."""
-        if self.dry_mode:
-            return self._result("RecoveryStand")
-
-        self._client.RecoveryStand()
-        return self._result("RecoveryStand")
+        return {
+            "executed": "controller_command",
+            "intent": "posture",
+            "controller": envelope.controller,
+            "params": {"name": name},
+            "sdk_call": sdk_method,
+            "dry_mode": self.dry_mode,
+            "control_target": self.control_target,
+        }
 
     def _result(self, executed: str) -> Dict[str, Any]:
         return {
@@ -172,57 +141,37 @@ class UnitreeGo2Adapter:
         }
 
 
-class IsaacSimGo2Adapter:
-    """HTTP adapter for a Go2 model running inside Isaac Sim."""
+class HttpControllerTargetAdapter:
+    """HTTP adapter for simulator targets that consume controller envelopes."""
 
-    control_target = "isaac_sim"
     dry_mode = False
 
-    def __init__(self, base_url: str, timeout: float = 10.0):
+    def __init__(
+        self,
+        base_url: str,
+        control_target: str,
+        display_name: str,
+        timeout: float = 10.0,
+    ):
         self.base_url = base_url.rstrip("/") + "/"
+        self.control_target = control_target
+        self.display_name = display_name
         self.timeout = timeout
 
     def status(self) -> Dict[str, Any]:
-        """Return Isaac Sim Go2 status."""
         return self._request_json("GET", "status")
 
     def stop(self) -> Dict[str, Any]:
-        """Send stop to Isaac Sim Go2."""
         return self._request_json("POST", "stop")
 
-    def balance_stand(self) -> Dict[str, Any]:
-        """Put Isaac Sim Go2 into balance stand mode."""
-        return self._request_json("POST", "balance_stand")
-
-    def move(
-        self, vx: float, vy: float, vyaw: float, duration: float
+    def execute_controller_command(
+        self, envelope: ControllerCommandEnvelope
     ) -> Dict[str, Any]:
-        """Move Isaac Sim Go2 with given velocities for a duration."""
         return self._request_json(
             "POST",
-            "move",
-            {"vx": vx, "vy": vy, "vyaw": vyaw, "duration": duration},
+            "controller-command",
+            envelope.to_dict(),
         )
-
-    def stand_up(self) -> Dict[str, Any]:
-        """Make Isaac Sim Go2 stand up."""
-        return self._request_json("POST", "stand_up")
-
-    def stand_down(self) -> Dict[str, Any]:
-        """Make Isaac Sim Go2 stand down."""
-        return self._request_json("POST", "stand_down")
-
-    def hello(self) -> Dict[str, Any]:
-        """Make Isaac Sim Go2 perform hello gesture."""
-        return self._request_json("POST", "hello")
-
-    def dance1(self) -> Dict[str, Any]:
-        """Make Isaac Sim Go2 perform dance1."""
-        return self._request_json("POST", "dance1")
-
-    def recovery_stand(self) -> Dict[str, Any]:
-        """Make Isaac Sim Go2 perform recovery stand."""
-        return self._request_json("POST", "recovery_stand")
 
     def _request_json(
         self, method: str, path: str, payload: Dict[str, Any] | None = None
@@ -247,14 +196,14 @@ class IsaacSimGo2Adapter:
             message = _read_error_body(exc)
             if exc.code in {400, 404, 405, 501}:
                 raise UnsupportedCommandError(
-                    f"Isaac Sim command '{path}' is unsupported: {message}"
+                    f"{self.display_name} request '{path}' is unsupported: {message}"
                 ) from exc
             raise AdapterCommandError(
-                f"Isaac Sim command '{path}' failed with HTTP {exc.code}: {message}"
+                f"{self.display_name} request '{path}' failed with HTTP {exc.code}: {message}"
             ) from exc
         except error.URLError as exc:
             raise AdapterCommandError(
-                f"Isaac Sim control server is unreachable: {exc.reason}"
+                f"{self.display_name} control server is unreachable: {exc.reason}"
             ) from exc
 
         if not response_body:
@@ -263,7 +212,7 @@ class IsaacSimGo2Adapter:
             parsed = json.loads(response_body)
             if not isinstance(parsed, dict):
                 raise AdapterCommandError(
-                    f"Isaac Sim command '{path}' returned non-object JSON"
+                    f"{self.display_name} request '{path}' returned non-object JSON"
                 )
             result = parsed
 
@@ -272,9 +221,33 @@ class IsaacSimGo2Adapter:
         return result
 
 
+class IsaacSimGo2Adapter(HttpControllerTargetAdapter):
+    """HTTP adapter for a Go2 model running inside Isaac Sim."""
+
+    def __init__(self, base_url: str, timeout: float = 10.0):
+        super().__init__(
+            base_url=base_url,
+            control_target="isaac_sim",
+            display_name="Isaac Sim",
+            timeout=timeout,
+        )
+
+
+class MuJoCoGo2Adapter(HttpControllerTargetAdapter):
+    """HTTP adapter for a Go2 model running inside MuJoCo."""
+
+    def __init__(self, base_url: str, timeout: float = 10.0):
+        super().__init__(
+            base_url=base_url,
+            control_target="mujoco",
+            display_name="MuJoCo",
+            timeout=timeout,
+        )
+
+
 def create_go2_adapter_from_env(
     environ: Dict[str, str] | None = None,
-) -> UnitreeGo2Adapter | IsaacSimGo2Adapter:
+) -> UnitreeGo2Adapter | IsaacSimGo2Adapter | MuJoCoGo2Adapter:
     """Create the configured Go2 adapter from environment variables."""
     env = environ if environ is not None else os.environ
     target = env.get("BRIDGE_TARGET", "dry").strip().lower()
@@ -287,14 +260,17 @@ def create_go2_adapter_from_env(
     if target == "isaac_sim":
         base_url = env.get("ISAAC_SIM_URL")
         if not base_url:
-            raise ValueError(
-                "ISAAC_SIM_URL is required when BRIDGE_TARGET=isaac_sim"
-            )
+            raise ValueError("ISAAC_SIM_URL is required when BRIDGE_TARGET=isaac_sim")
         return IsaacSimGo2Adapter(base_url=base_url)
+    if target == "mujoco":
+        base_url = env.get("MUJOCO_URL")
+        if not base_url:
+            raise ValueError("MUJOCO_URL is required when BRIDGE_TARGET=mujoco")
+        return MuJoCoGo2Adapter(base_url=base_url)
 
     raise ValueError(
         "Invalid BRIDGE_TARGET "
-        f"'{target}'. Expected one of: dry, real_go2, isaac_sim."
+        f"'{target}'. Expected one of: dry, real_go2, isaac_sim, mujoco."
     )
 
 

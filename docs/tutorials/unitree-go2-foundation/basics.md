@@ -194,35 +194,22 @@ Expected:
 }
 ```
 
-### Try the command endpoint (Phase-1 legacy style)
+### Execute the first approved action
 
-The `/robot/command` endpoint accepts a command name and optional parameters:
+Use the action library for posture or motion. `go2_balance_stand` is an approved low-risk action and does not require confirmation:
 
 ```bash
-curl -s -X POST http://127.0.0.1:50001/robot/command \
-  -H "Content-Type: application/json" \
-  -d '{"command": "balance_stand"}'
+pixi run python -m go2_bridge_client run go2_balance_stand --confirm
 ```
 
-Expected:
-
-```json
-{
-  "executed": "BalanceStand",
-  "dry_mode": true,
-  "control_target": "dry"
-}
-```
-
-Supported commands at `/robot/command`: `status`, `stop`, `balance_stand`, `stand_up`,
-`stand_down`, `hello`, `dance1`, `recovery_stand`.
+Expected dry-target response includes a completed action with a controller-level posture command result.
 
 ---
 
 ## 1.7 Switch Control Targets (Optional)
 
 Robot Bridge keeps the same API while changing the control target behind it.
-Use `BRIDGE_TARGET=dry`, `BRIDGE_TARGET=real_go2`, or `BRIDGE_TARGET=isaac_sim`.
+Use `BRIDGE_TARGET=dry`, `BRIDGE_TARGET=real_go2`, `BRIDGE_TARGET=isaac_sim`, or `BRIDGE_TARGET=mujoco`.
 
 ### Isaac Sim target
 
@@ -255,21 +242,46 @@ Expected:
 }
 ```
 
-Robot Bridge expects the Isaac Sim control server to expose this minimum HTTP contract:
+Robot Bridge expects simulator control servers to expose this minimum HTTP contract:
 
-| Method | Path              | Body                           |
-| ------ | ----------------- | ------------------------------ |
-| `GET`  | `/status`         | none                           |
-| `POST` | `/stop`           | none                           |
-| `POST` | `/balance_stand`  | none                           |
-| `POST` | `/move`           | `vx`, `vy`, `vyaw`, `duration` |
-| `POST` | `/stand_up`       | none                           |
-| `POST` | `/stand_down`     | none                           |
-| `POST` | `/hello`          | none                           |
-| `POST` | `/dance1`         | none                           |
-| `POST` | `/recovery_stand` | none                           |
+| Method | Path                  | Body                                      |
+| ------ | --------------------- | ----------------------------------------- |
+| `GET`  | `/status`             | none                                      |
+| `POST` | `/stop`               | none                                      |
+| `POST` | `/controller-command` | Controller Command Envelope JSON payload |
 
-Successful Isaac Sim responses should include `executed` and `control_target: "isaac_sim"`. Unsupported commands must return a non-success HTTP response so Robot Bridge can report the command as unsupported instead of treating it as a no-op success.
+Example controller-command payload:
+
+```json
+{
+  "command_type": "controller_command",
+  "controller": "default",
+  "intent": "move",
+  "params": {
+    "vx": 0.12,
+    "vy": 0.0,
+    "vyaw": 0.0,
+    "duration": 0.8
+  }
+}
+```
+
+Supported canonical intents are `move` and `posture`. Posture names are constrained by Robot Bridge: `balance_stand`, `stand_up`, `stand_down`, and `recovery_stand`. Unsupported controller commands must return a non-success HTTP response so Robot Bridge can report them instead of treating them as no-op success.
+
+### MuJoCo target
+
+Start a MuJoCo-side HTTP control server first, then run Robot Bridge with:
+
+```bash
+pixi run bridge-server-mujoco
+```
+
+The built-in task uses:
+
+```bash
+BRIDGE_TARGET=mujoco
+MUJOCO_URL=http://127.0.0.1:52000
+```
 
 ### Real Go2 target
 
@@ -312,8 +324,7 @@ You can move to Phase 2 when all items are true:
 - [ ] `pixi run python -m go2_bridge_client health` returns `{"status":"ok","dry_mode":true,"control_target":"dry"}`.
 - [ ] `pixi run python -m go2_bridge_client status` returns robot status dict.
 - [ ] `pixi run python -m go2_bridge_client stop` returns `{"executed":"StopMove"}`.
-- [ ] You understand that `/robot/command` is the Phase-1 low-level interface (not the
-      recommended way to control Go2; Phase 2 introduces the safer action library).
+- [ ] You understand that posture and motion go through approved actions, not direct command dispatch.
 
 ---
 
@@ -378,9 +389,7 @@ Seven actions are defined:
 | `go2_turn_right_short` | low_motion | yes     | Turn right slowly                        |
 | `go2_greeting_demo`    | low_motion | yes     | Small greeting motion: stand, turn, stop |
 
-Each action has a `steps` list. A step is one of: `status`, `stop`, `balance_stand`,
-`stand_up`, `stand_down`, `hello`, `dance1`, `recovery_stand`, `move` (with vx/vy/vyaw/duration),
-or `wait` (with duration).
+Each action has a `steps` list. A step is one of: `status`, `stop`, `posture` (with a constrained posture name), `move` (with vx/vy/vyaw/duration), or `wait` (with duration).
 
 ---
 
@@ -449,7 +458,7 @@ Action: go2_forward_short
   Confirmation: True
   Steps:
     1. {'type': 'status'}
-    2. {'type': 'balance_stand'}
+    2. {'type': 'posture', 'name': 'balance_stand'}
     3. {'type': 'wait', 'duration': 0.5}
     4. {'type': 'move', 'vx': 0.12, 'vy': 0.0, 'vyaw': 0.0, 'duration': 0.8}
     5. {'type': 'stop'}
@@ -790,7 +799,7 @@ flowchart TD
 
 Each step type is dispatched:
 
-- **action**: Delegates to `ActionLibrary.get_action()` → `SafetySupervisor.validate_action()` → `UnitreeGo2Adapter`.
+- **action**: Delegates to `ActionLibrary.get_action()` → `SafetySupervisor.validate_action()` → canonical controller command execution through the active control target adapter.
 - **observe**: `time.sleep(duration)` → collect `robot_status` + `world_state` snapshot.
 - **report**: Builds final structured report from all step results + final robot state.
 
@@ -862,7 +871,6 @@ You can consider the tutorial complete when all items are true:
 | `GET`  | `/health`                  | Server health + dry_mode and control_target  |
 | `GET`  | `/robot/status`            | Robot status                                 |
 | `POST` | `/robot/stop`              | Emergency stop                               |
-| `POST` | `/robot/command`           | Phase-1 single command dispatch              |
 | `GET`  | `/actions`                 | List available actions                       |
 | `POST` | `/actions/{name}/dry-run`  | Show action steps with clamped values        |
 | `POST` | `/actions/{name}/execute`  | Execute action (body: `{"confirmed":bool}`)  |

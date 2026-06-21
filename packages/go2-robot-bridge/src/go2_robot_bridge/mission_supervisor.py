@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from .action_library import ActionLibrary
 from .safety_supervisor import SafetySupervisor
-from .sdk_adapter import UnitreeGo2Adapter
+from .action_executor import execute_bridge_step
 from .logger import Logger
 
 
@@ -27,7 +27,7 @@ class MissionSupervisor:
         self,
         action_library: ActionLibrary,
         safety_supervisor: SafetySupervisor,
-        adapter: UnitreeGo2Adapter,
+        adapter: Any,
         logger: Logger,
     ):
         self._action_library = action_library
@@ -317,37 +317,8 @@ class MissionSupervisor:
         }
 
     def _dispatch_step(self, step_type: str, step: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute a single action sub-step through the adapter."""
-        if step_type == "status":
-            return self._adapter.status()
-        elif step_type == "stop":
-            return self._adapter.stop()
-        elif step_type == "balance_stand":
-            return self._adapter.balance_stand()
-        elif step_type == "stand_up":
-            return self._adapter.stand_up()
-        elif step_type == "stand_down":
-            return self._adapter.stand_down()
-        elif step_type == "hello":
-            return self._adapter.hello()
-        elif step_type == "dance1":
-            return self._adapter.dance1()
-        elif step_type == "recovery_stand":
-            return self._adapter.recovery_stand()
-        elif step_type == "move":
-            clamped = self._safety_supervisor.clamp_move_step(step)
-            return self._adapter.move(
-                vx=clamped["vx"],
-                vy=clamped["vy"],
-                vyaw=clamped["vyaw"],
-                duration=clamped["duration"],
-            )
-        elif step_type == "wait":
-            duration = float(step.get("duration", 0.0))
-            time.sleep(duration)
-            return {"waited_s": duration}
-        else:
-            raise ValueError(f"Unknown step type: {step_type}")
+        """Execute a single action sub-step through the canonical bridge executor."""
+        return execute_bridge_step(step, self._adapter, self._safety_supervisor)
 
     def _build_report(
         self,

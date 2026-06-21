@@ -5,12 +5,14 @@ from typing import Any, Dict, Optional
 
 import yaml
 
+from .controller_command import ALLOWED_POSTURES
+
 
 class SafetySupervisor:
     """Enforces safety limits on actions before execution.
 
-    Validates speed, duration, move-step count, confirmation requirements,
-    and rejects unknown or freeform actions.
+    Validates step vocabulary, posture names, speed, duration, move-step count,
+    confirmation requirements, and rejects unknown or freeform actions.
     """
 
     def __init__(
@@ -33,14 +35,10 @@ class SafetySupervisor:
     ) -> None:
         """Validate an action before execution.
 
-        Args:
-            action_name: Name of the action (for error messages).
-            action: The full action dict (steps, risk, etc.).
-            confirmed: Whether the user has confirmed the action.
-
         Raises:
             PermissionError: If action requires confirmation but not confirmed.
-            ValueError: If speed, duration, or step count exceeds limits.
+            ValueError: If the step vocabulary, posture, speed, duration, or move
+                step count exceeds bridge limits.
         """
         limits = self._limits["limits"]
         requires_confirmation = action.get("requires_confirmation", True)
@@ -51,9 +49,15 @@ class SafetySupervisor:
                 f"Set confirmed=True to proceed."
             )
 
+        allowed_step_types = {"status", "stop", "posture", "move", "wait"}
         move_count = 0
         for step in action.get("steps", []):
             step_type = step.get("type")
+            if step_type not in allowed_step_types:
+                raise ValueError(f"Unknown action step type: {step_type}")
+
+            if step_type == "posture":
+                self._validate_posture(step)
 
             if step_type == "move":
                 move_count += 1
@@ -66,6 +70,12 @@ class SafetySupervisor:
                 f"Action '{action_name}' has {move_count} move steps, "
                 f"max allowed is {max_move_steps}"
             )
+
+    def _validate_posture(self, step: Dict[str, Any]) -> None:
+        name = str(step.get("name", ""))
+        if name not in ALLOWED_POSTURES:
+            allowed = ", ".join(sorted(ALLOWED_POSTURES))
+            raise ValueError(f"Unsupported posture '{name}'. Allowed: {allowed}")
 
     def _validate_move_speeds(
         self, step: Dict[str, Any], go2_limits: Dict[str, Any]
@@ -93,10 +103,7 @@ class SafetySupervisor:
             )
 
     def clamp_move_step(self, step: Dict[str, Any]) -> Dict[str, Any]:
-        """Clamp a move step's velocities and duration to safety limits.
-
-        Returns a new (shallow-copied) dict with clamped values.
-        """
+        """Clamp a move step's velocities and duration to safety limits."""
         go2_limits = self._limits["limits"]["go2"]
         max_duration = self._limits["limits"]["max_move_duration"]
 
